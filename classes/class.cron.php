@@ -55,7 +55,7 @@ class WpRobotWocommerceCron{
 	 * */
 	static function schedule_posts_to_product(){		
 		
-		$posts = self::get_100_posts();
+		$posts = self::get_50_posts();
 		
 		//var_dump($posts);	
 		
@@ -67,7 +67,10 @@ class WpRobotWocommerceCron{
 			
 			foreach($posts as $post){
 				
-				$post_data = array('post_title'=>$post->post_title, 'post_type'=>'product', 'post_status'=>'publish', 'post_content'=>'', 'post_excerpt'=>'');
+				$post_time = strtotime($post->post_date);
+				$post_status = (current_time('timestamp') > $post_time) ? 'publish' : 'future';
+				
+				$post_data = array('post_title'=>$post->post_title, 'post_type'=>'product', 'post_status'=>$post_status, 'post_content'=>'', 'post_excerpt'=>'', 'post_date'=>$post->post_date);
 				
 								
 				$ID = wp_insert_post($post_data);
@@ -79,8 +82,7 @@ class WpRobotWocommerceCron{
 					update_post_meta($ID, 'post_id', $post->ID);
 									
 					$categories = wp_get_object_terms($post->ID, 'category', array('fields' => 'names'));					
-					wp_set_object_terms($ID, $categories, 'product_cat');
-					
+					wp_set_object_terms($ID, $categories, 'product_cat');					
 					
 					
 					$tags = wp_get_object_terms($post->ID, 'post_tag', array('fields' => 'names'));
@@ -89,10 +91,17 @@ class WpRobotWocommerceCron{
 					$post_metas = get_post_custom($post->ID);										
 					
 					if($post_metas) :					
-						update_post_meta($ID, 'ASIN', $post_metas['AMAZON_ASIN'][0]);			
-						update_post_meta($ID, 'Thumbnail_Large', $post_metas['Thumbnail_Large'][0]);			
+						update_post_meta($ID, 'ASIN', $post_metas['AMAZON_ASIN'][0]);							
+						update_post_meta($ID, 'Thumbnail_Large', $post_metas['Thumbnail_Large'][0]);
+
+						/*
 						update_post_meta($ID, 'Thumbnail_Medium', $post_metas['Thumbnail_Medium'][0]);			
-						update_post_meta($ID, 'Thumbnail_Small', $post_metas['Thumbnail_Small'][0]);			
+						update_post_meta($ID, 'Thumbnail_Small', $post_metas['Thumbnail_Small'][0]);
+						*/
+						
+						
+						self::handle_attachment($ID, $post_metas);
+						
 						
 						if(strlen($post_metas['AMAZON_ASIN'][0]) > 2){
 							update_post_meta($ID, '_visibility', 'visible');			
@@ -108,19 +117,88 @@ class WpRobotWocommerceCron{
 	
 	
 	
+	//handle attachments
+	static function handle_attachment($post_id, $post_metas){
+		$upload_dir = wp_upload_dir();
+		$image_dir = $upload_dir['basedir'] . '/robotcommerce' ;
+		if(!file_exists($image_dir)){
+			@ mkdir($image_dir);
+		}
+		
+		$unique_name = $post_metas['AMAZON_ASIN'][0];
+		
+				
+		$outPath = $image_dir . '/' . $unique_name . '.jpg';
+		$outUrl = $upload_dir['baseurl'] . $unique_name . '.jpg';
+		$inPath = $post_metas['Thumbnail_Large'][0];
+		
+		if(self::save_image($inPath, $outPath)){
+			
+			$wp_filetype = wp_check_filetype(basename($outUrl), null );
+			
+			$info = array(
+				'guid' => $outUrl,
+				'post_mime_type' => $wp_filetype['type'],
+				'post_title' => preg_replace('/\.[^.]+$/', '', basename($outUrl)),
+				'post_content' => '',
+				'post_status' => 'inherit'
+			);
+			
+			$attach_id = wp_insert_attachment( $info, $outPath, $post_id );
+			
+			if(!function_exists('wp_generate_attachment_metadata')){
+				include ABSPATH . 'wp-admin/includes/image.php';
+			}
+			
+			$attach_data = wp_generate_attachment_metadata( $attach_id, $outPath );
+			wp_update_attachment_metadata( $attach_id, $attach_data );
+			
+			//adding attachment data
+			update_post_meta($post_id, '_thumbnail_id', $attach_id);
+		}
+		
+		
+	}
+	
+	
+	//save image
+	static function save_image($inPath,$outPath){
+		$in=    fopen($inPath, "rb");
+	    $out=   fopen($outPath, "wb");
+	    while ($chunk = fread($in,8192))
+	    {
+	        fwrite($out, $chunk, 8192);
+	    }
+	    fclose($in);
+	    fclose($out);
+	    
+	    if(file_exists($outPath)){
+	    	return true;
+	    }
+	    return false;
+	}
+	
+	
 	/*
 	 * return 100posts
 	 * */
-	static function get_100_posts(){
+	static function get_50_posts(){
 		global $wpdb;
 		
 			
-		
+		/*
 		$sql = "select ID, post_title from $wpdb->posts where ID in (
 						select c.post_id from(
 							SELECT count(*) as num, post_id  FROM `$wpdb->postmeta` WHERE `meta_key` LIKE 'AMAZON_ASIN' or meta_key like 'woocommerce_id'  group by post_id 
 						) c where  c.num=1
 		)" ;	
+		*/
+		
+		$sql = "select ID, post_title, post_date from $wpdb->posts where ID in (
+						select c.post_id from(
+							SELECT count(*) as num, post_id  FROM `$wpdb->postmeta` WHERE `meta_key` LIKE 'AMAZON_ASIN' or meta_key like 'woocommerce_id'  group by post_id 
+						) c where  c.num=1
+		) LIMIT 50" ;	
 				
 		
 		$posts = $wpdb->get_results($sql);		

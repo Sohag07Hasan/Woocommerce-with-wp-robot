@@ -15,7 +15,7 @@ class wprobot_woocommerce{
 	
 	static function init(){
 		//add_filter('the_content', array(get_class(), 'wprobot_post'));
-		add_action('woocommerce_before_single_product', array(get_class(), 'wprobot_post'));		
+	//	add_action('woocommerce_before_single_product', array(get_class(), 'wprobot_post'));		
 		//price modification
 		//add_action('woocommerce_single_price', array('woocommerce_variation_sale_price_html'));
 		
