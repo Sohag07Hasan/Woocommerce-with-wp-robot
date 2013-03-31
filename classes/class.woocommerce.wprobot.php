@@ -4,7 +4,7 @@
  * */
  
 
-include dirname(__FILE__) . '/api/cloudfusion.class.php';
+//include dirname(__FILE__) . '/api/cloudfusion.class.php';
  
 class wprobot_woocommerce{
 	
@@ -14,10 +14,13 @@ class wprobot_woocommerce{
 	
 	
 	static function init(){
-		//add_filter('the_content', array(get_class(), 'wprobot_post'));
-	//	add_action('woocommerce_before_single_product', array(get_class(), 'wprobot_post'));		
+	//	add_filter('the_content', array(get_class(), 'wprobot_post'));
+		add_action('woocommerce_before_single_product', array(get_class(), 'wprobot_post'));
+		add_action('woocommerce_before_shop_loop_item', array(get_class(), 'wprobot_post'));		
 		//price modification
 		//add_action('woocommerce_single_price', array('woocommerce_variation_sale_price_html'));
+		
+		//add_action('init', array(get_class(), 'wprobot_post'));
 		
 	}
 	
@@ -33,15 +36,38 @@ class wprobot_woocommerce{
 	
 	static function wprobot_post(){
 		global $post;
-			
+
+	//	var_dump($post); die();
+		
 		self::$wprobot_post = array();
 		
 		if($post->post_type == 'product' && function_exists('wpr_aws_request')){			
-			$asin = get_amazon_asin($post->ID);
-			self::$wprobot_post = self::wpr_amazon_product(array('asin' => $asin));			
-					
-		}
+			$asin = self::get_amazon_asin($post->ID);
+			self::$wprobot_post = self::wpr_amazon_product(array('asin' => $asin));	
 				
+		}				
+	}
+	
+	
+	
+	//boolean is sellable
+	static function is_sell_able(){
+		if(wprobot_woocommerce::$wprobot_post){
+			$list_price = preg_replace('/[^0-9.]/', '', wprobot_woocommerce::$wprobot_post['list_price']);
+			$price = preg_replace('/[^0-9.]/', '', wprobot_woocommerce::$wprobot_post['price']);
+
+			return ($list_price > 0 || $price > 0) ? true : false;
+		}
+		else{
+			return false;
+		}		
+		
+	}
+	
+	
+	//return the amazon asin
+	static function get_amazon_asin($post_id){
+		return get_post_meta($post_id, 'ASIN', true);
 	}
 	
 	
@@ -53,13 +79,24 @@ class wprobot_woocommerce{
 		
 		$product_information = array();
 		
+		/*
 		$options = unserialize(get_option("wpr_options"));	
 		$public_key = $options['wpr_aa_apikey'];
 		$private_key = $options['wpr_aa_secretkey'];
 		$locale = $options['wpr_aa_site'];		
 		$affid = $options['wpr_aa_affkey'];	
+		*/
+		
+		$public_key = 'AKIAJO5VQCKEW6GFRIWQ';
+		$private_key = 'fp5xj/xv6xELWedI2U3dL3/gA9/Eo8UpzDDzFtOB';
+		$locale = 'us';		
+		$affid = 'bouncerseat-20';
+		
+		
 		if($locale == "us") {$locale = "com";}
-		if($locale == "uk") {$locale = "co.uk";}	
+		if($locale == "uk") {$locale = "co.uk";}
+
+		
 		$pxml = wpr_aws_request($locale, array(
 		"Operation"=>"ItemLookup",
 		"ItemId"=>$atts["asin"],
@@ -67,8 +104,14 @@ class wprobot_woocommerce{
 		"AssociateTag"=>$affid,
 		"TruncateReviewsAt"=>"5000",
 		"ResponseGroup"=>"Large"
+	//	"ResponseGroup"=>"OfferSummary"
 		), $public_key, $private_key);
-		//echo "<pre>";print_r($pxml);echo "</pre>";
+		
+		
+		
+	//	var_dump($pxml);
+		
+		
 		if ($pxml === False) {
 			return $product_information;
 		} else {
@@ -76,21 +119,24 @@ class wprobot_woocommerce{
 				
 				
 				foreach($pxml->Items->Item as $item) {	
-
+								
 					$desc = "";					
 					if (isset($item->EditorialReviews->EditorialReview)) {
 						foreach($item->EditorialReviews->EditorialReview as $descs) {
 							$desc .= $descs->Content;
 						}		
-					}	
+					}
 					
-					$elength = ($options['wpr_aa_excerptlength']);
+				//	$elength = ($options['wpr_aa_excerptlength']);
+					$elength = 500;
+					
 					if ($elength != 'full') {
 						$desc = strip_tags($desc,'<br>');
 						$desc = substr($desc, 0, $elength);
 					}				
 									
 					$product_information['description'] = $desc;
+					
 					
 					$features = "";
 					if (isset($item->ItemAttributes->Feature)) {	
@@ -106,9 +152,9 @@ class wprobot_woocommerce{
 					
 					$product_information['features'] = $features;
 					
-
+					
 					$price = str_replace("$", "$", $item->OfferSummary->LowestNewPrice->FormattedPrice);
-					$listprice = str_replace("$", "$", $item->ItemAttributes->ListPrice->FormattedPrice);
+					$listprice = str_replace("$", "$", $item->Offers->Offer->OfferListing->Price->FormattedPrice);
 									
 
 					if($price == "Too low to display" || $price == "Price too low to display") {
@@ -120,8 +166,7 @@ class wprobot_woocommerce{
 					$product_information['Thumbnail_Large'] = $item->LargeImage->URL;
 					$product_information['Thumbnail_Medium'] = $item->MediumImage->URL;
 					$product_information['Thumbnail_Small'] = $item->SmallImage->URL;
-					$product_information['ASIN'] = $item->ASIN;
-									
+					$product_information['ASIN'] = $item->ASIN;					
 					return $product_information;
 				}		
 
