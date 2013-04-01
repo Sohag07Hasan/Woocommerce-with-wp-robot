@@ -22,7 +22,35 @@ class wprobot_woocommerce{
 		
 		//add_action('init', array(get_class(), 'wprobot_post'));
 		
+		add_filter('woocommerce_product_tabs', array(get_class(), 'products_features'), 20);
+		
+				
+		
 	}
+	
+	
+	
+	/*return products features*/
+	static function products_features($tabs){
+		if(wprobot_woocommerce::$wprobot_post){
+			if(strlen(wprobot_woocommerce::$wprobot_post['features']) > 2){
+				$tabs['features'] = array(
+					'title' => __("Features"),
+					'priority' => 5,
+					'callback' => array(get_class(), 'get_product_features')
+				);
+			}
+		}
+		
+		return $tabs;
+	}
+	
+	
+	//get the poduct features
+	static function get_product_features(){
+		woocommerce_get_template( 'single-product/tabs/features.php' );
+	}
+	
 	
 	
 	//filter the price
@@ -74,24 +102,23 @@ class wprobot_woocommerce{
 		//get the amazon product
 	function wpr_amazon_product($atts, $content = array()) {
 		global $wpdb,$wpr_table_templates;
-		
-		//return $wpr_table_templates;
+				
 		
 		$product_information = array();
 		
-		/*
+		
 		$options = unserialize(get_option("wpr_options"));	
 		$public_key = $options['wpr_aa_apikey'];
 		$private_key = $options['wpr_aa_secretkey'];
 		$locale = $options['wpr_aa_site'];		
 		$affid = $options['wpr_aa_affkey'];	
-		*/
 		
+		/*
 		$public_key = 'AKIAJO5VQCKEW6GFRIWQ';
 		$private_key = 'fp5xj/xv6xELWedI2U3dL3/gA9/Eo8UpzDDzFtOB';
 		$locale = 'us';		
 		$affid = 'bouncerseat-20';
-		
+		*/
 		
 		if($locale == "us") {$locale = "com";}
 		if($locale == "uk") {$locale = "co.uk";}
@@ -117,26 +144,22 @@ class wprobot_woocommerce{
 		} else {
 			if($pxml->Items->Item->CustomerReviews->IFrameURL) {
 				
-				
 				foreach($pxml->Items->Item as $item) {	
-								
+
 					$desc = "";					
 					if (isset($item->EditorialReviews->EditorialReview)) {
 						foreach($item->EditorialReviews->EditorialReview as $descs) {
 							$desc .= $descs->Content;
 						}		
-					}
+					}	
 					
-				//	$elength = ($options['wpr_aa_excerptlength']);
-					$elength = 500;
-					
+					$elength = ($options['wpr_aa_excerptlength']);
 					if ($elength != 'full') {
 						$desc = strip_tags($desc,'<br>');
 						$desc = substr($desc, 0, $elength);
 					}				
 									
 					$product_information['description'] = $desc;
-					
 					
 					$features = "";
 					if (isset($item->ItemAttributes->Feature)) {	
@@ -152,9 +175,9 @@ class wprobot_woocommerce{
 					
 					$product_information['features'] = $features;
 					
-					
+
 					$price = str_replace("$", "$", $item->OfferSummary->LowestNewPrice->FormattedPrice);
-					$listprice = str_replace("$", "$", $item->Offers->Offer->OfferListing->Price->FormattedPrice);
+					$listprice = str_replace("$", "$", $item->ItemAttributes->ListPrice->FormattedPrice);
 									
 
 					if($price == "Too low to display" || $price == "Price too low to display") {
@@ -166,7 +189,8 @@ class wprobot_woocommerce{
 					$product_information['Thumbnail_Large'] = $item->LargeImage->URL;
 					$product_information['Thumbnail_Medium'] = $item->MediumImage->URL;
 					$product_information['Thumbnail_Small'] = $item->SmallImage->URL;
-					$product_information['ASIN'] = $item->ASIN;					
+					$product_information['ASIN'] = $item->ASIN;
+									
 					return $product_information;
 				}		
 
