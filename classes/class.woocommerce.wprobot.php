@@ -11,19 +11,141 @@ class wprobot_woocommerce{
 	
 	
 	static function init(){
-	//	add_filter('the_content', array(get_class(), 'wprobot_post'));
+		
+		//loop and single product fatching form amazon using wprobot
 		add_action('woocommerce_before_single_product', array(get_class(), 'wprobot_post'));
 		add_action('woocommerce_before_shop_loop_item', array(get_class(), 'wprobot_post'));		
-		//price modification
-		//add_action('woocommerce_single_price', array('woocommerce_variation_sale_price_html'));
-		
-		//add_action('init', array(get_class(), 'wprobot_post'));
-		
+
+		//single products tabs handling
 		add_filter('woocommerce_product_tabs', array(get_class(), 'products_features'), 20);
 		
-				
+			
+		//shopping cart actions
+		remove_action('init', 'woocommerce_add_to_cart_action');
+		remove_action('init', 'woocommerce_update_cart_action');
+		
+		add_action('init', array(get_class(), 'Amazon_add_to_cart_action'));
+		//add_action('init', 'Amazon_update_cart_action');
 		
 	}
+	
+	
+	
+	/**************************************************************************************
+	 * 
+	 * Cart Managemment
+	 * Using amazon advertising api
+	 * saves cart as cookie
+	 * nothing is static, everything comes from amazon
+	 * 
+	 * */
+	static function Amazon_add_to_cart_action(){
+		//die();
+		if ( empty( $_REQUEST['add-to-cart'] ) || ! is_numeric( $_REQUEST['add-to-cart'] ) ) return;
+		
+		global $woocommerce;
+		
+		$product_id		= (int) $_REQUEST['add-to-cart'];
+    	$quantity 		= (isset($_REQUEST['quantity'])) ? (int) $_REQUEST['quantity'] : 1;
+    	$country = 'us';
+    	
+    	
+    	
+    	 if(class_exists('AmazonPAS')):
+			$pas = new AmazonPAS();
+			$offer_listing_id = array(self::get_amazon_asin($product_id) => $quantity);			
+			$cartCookie = json_decode(stripslashes($_COOKIE["wo_rzon_cart_info"]));
+			if($cartCookie != null){
+				$response = $pas->cart_add($cartCookie->cart->cartid, $cartCookie->cart->hmac, $offer_listing_id, null, $cartCookie->cart->country);
+										
+			}
+			else{
+				$response = $pas->cart_create($offer_listing_id,null,$country);		
+				if($response->isOK()){
+					$cookie = array();
+					$cartid = (string)$response->body->Cart->CartId;
+					$hmac = (string)$response->body->Cart->HMAC;		
+					$cart = array("cartid"=>$cartid,"hmac"=>$hmac,"country"=>$country);
+					$cookie["cart"] = $cart;
+					setcookie('wo_rzon_cart_info', json_encode(self::wo_arrayToObject($cookie)), time()+100*24*60*60, '/');
+				}						
+				
+			}
+		 endif;
+		 
+		 
+		// var_dump($response); die();
+		 
+		 //checking if the response is successful
+		if($response->isOK()) {
+	    	woocommerce_add_to_cart_message($product_id);
+	    	$was_added_to_cart = true;
+		}
+		
+		
+		// If we added the product to the cart we can now do a redirect, otherwise just continue loading the page to show errors
+	    if ( $was_added_to_cart ) {
+	
+			$url = apply_filters( 'add_to_cart_redirect', $url );
+	
+			// If has custom URL redirect there
+			if ( $url ) {
+				wp_safe_redirect( $url );
+				exit;
+			}
+	
+			// Redirect to cart option
+			elseif ( get_option('woocommerce_cart_redirect_after_add') == 'yes' && $woocommerce->error_count() == 0 ) {
+				wp_safe_redirect( $woocommerce->cart->get_cart_url() );
+				exit;
+			}
+	
+			// Redirect to page without querystring args
+			elseif ( wp_get_referer() ) {
+				wp_safe_redirect( remove_query_arg( array( 'add-to-cart', 'quantity', 'product_id' ), wp_get_referer() ) );
+				exit;
+			}
+	
+	    }
+    	
+	}
+	
+	
+	/*
+	 * @array = mulitidimentional array
+	 * returns an object
+	 * */
+	static function wo_arrayToObject($array) {
+	    if(!is_array($array)) {
+	        return $array;
+	    }
+	    
+	    $object = new stdClass();
+	    if (is_array($array) && count($array) > 0) {
+	      foreach ($array as $name=>$value) {
+	         $name = strtolower(trim($name));
+	         if (!empty($name)) {
+	            $object->$name = self::wo_arrayToObject($value);
+	         }
+	      }
+	      return $object; 
+	    }
+	    else {
+	      return FALSE;
+	    }
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	
