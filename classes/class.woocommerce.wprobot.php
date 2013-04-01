@@ -2,10 +2,7 @@
 /*
  * static class to handle everything
  * */
- 
 
-//include dirname(__FILE__) . '/api/cloudfusion.class.php';
- 
 class wprobot_woocommerce{
 	
 	static $wprobot_post = array();
@@ -40,6 +37,14 @@ class wprobot_woocommerce{
 					'callback' => array(get_class(), 'get_product_features')
 				);
 			}
+			
+			if(strlen(wprobot_woocommerce::$wprobot_post['description']) > 2){
+				$tabs['amazondescription'] = array(
+					'title' => __("Description"),
+					'priority' => 3,
+					'callback' => array(get_class(), 'get_product_description')
+				);
+			}
 		}
 		
 		return $tabs;
@@ -48,9 +53,14 @@ class wprobot_woocommerce{
 	
 	//get the poduct features
 	static function get_product_features(){
-		woocommerce_get_template( 'single-product/tabs/features.php' );
+		woocommerce_get_template( 'single-product/tabs/amazon-features.php' );
 	}
 	
+	
+	//get product descriptions
+	static function get_product_description(){
+		woocommerce_get_template( 'single-product/tabs/amazon-description.php' );
+	}
 	
 	
 	//filter the price
