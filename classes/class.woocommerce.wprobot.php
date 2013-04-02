@@ -17,8 +17,7 @@ class wprobot_woocommerce{
 		add_action('woocommerce_before_shop_loop_item', array(get_class(), 'wprobot_post'));		
 
 		//single products tabs handling
-		add_filter('woocommerce_product_tabs', array(get_class(), 'products_features'), 20);
-		
+		add_filter('woocommerce_product_tabs', array(get_class(), 'products_features'), 20);		
 			
 		//shopping cart actions
 		remove_action('init', 'woocommerce_add_to_cart_action');
@@ -26,6 +25,7 @@ class wprobot_woocommerce{
 		
 		add_action('init', array(get_class(), 'Amazon_add_to_cart_action'));
 		//add_action('init', 'Amazon_update_cart_action');
+				
 		
 	}
 	
@@ -135,8 +135,7 @@ class wprobot_woocommerce{
 	    }
 	}
 	
-	
-	
+		
 	
 	
 	
@@ -346,6 +345,10 @@ class wprobot_woocommerce{
 		self::$product = self::wpr_amazon_product(array('asin' => $asin));
 		return self::$product;			
 	}
+	
+	
+	//get product id by asin
+		
 
 	
 	
