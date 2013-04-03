@@ -54,7 +54,8 @@ class wprobot_woocommerce{
     	 if(class_exists('AmazonPAS')):
 			$pas = new AmazonPAS();
 			$offer_listing_id = array(self::get_amazon_asin($product_id) => $quantity);			
-			$cartCookie = json_decode(stripslashes($_COOKIE["wo_rzon_cart_info"]));
+			$cartCookie = Reviewzon_get_cart();
+			
 			if($cartCookie != null){
 				$response = $pas->cart_add($cartCookie->cart->cartid, $cartCookie->cart->hmac, $offer_listing_id, null, $cartCookie->cart->country);
 										
