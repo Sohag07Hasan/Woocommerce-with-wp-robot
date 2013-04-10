@@ -71,8 +71,8 @@ class WpRobotWocommerceCron{
 				$post_status = (current_time('timestamp') > $post_time) ? 'publish' : 'future';
 				
 				$post_data = array('post_title'=>$post->post_title, 'post_type'=>'product', 'post_status'=>$post_status, 'post_content'=>'', 'post_excerpt'=>'', 'post_date'=>$post->post_date);
-				
-								
+							
+				//product id
 				$ID = wp_insert_post($post_data);
 							
 				
@@ -93,18 +93,25 @@ class WpRobotWocommerceCron{
 					if($post_metas) :					
 						update_post_meta($ID, 'ASIN', $post_metas['AMAZON_ASIN'][0]);							
 						update_post_meta($ID, 'Thumbnail_Large', $post_metas['Thumbnail_Large'][0]);
-
-						/*
-						update_post_meta($ID, 'Thumbnail_Medium', $post_metas['Thumbnail_Medium'][0]);			
-						update_post_meta($ID, 'Thumbnail_Small', $post_metas['Thumbnail_Small'][0]);
-						*/
+						
+						$price = preg_replace('/[^0-9.]/', '', $post_metas['price'][0]);
+						$list_price = preg_replace('/[^0-9.]/', '', $post_metas['listprice'][0]);
+						
+						update_post_meta($ID, '_regular_price', $list_price);
+						update_post_meta($ID, '_sale_price', $price);
+						update_post_meta($ID, '_price', $price);
+						update_post_meta($ID, 'description', $post_metas['description'][0]);
+						update_post_meta($ID, 'features', $post_metas['features'][0]);
+						
 						
 						
 						self::handle_attachment($ID, $post_metas);
 						
 						
 						if(strlen($post_metas['AMAZON_ASIN'][0]) > 2){
-							update_post_meta($ID, '_visibility', 'visible');			
+							update_post_meta($ID, '_visibility', 'visible');
+							update_post_meta($ID, '_stock_status', 'instock');		
+							update_post_meta($ID, '_virtual', 'no');	
 						}
 									
 					endif;					
@@ -163,6 +170,9 @@ class WpRobotWocommerceCron{
 	
 	//save image
 	static function save_image($inPath,$outPath){
+		
+		if(strlen($inPath) < 5) return false;
+		
 		$in=    fopen($inPath, "rb");
 	    $out=   fopen($outPath, "wb");
 	    while ($chunk = fread($in,8192))
@@ -185,21 +195,15 @@ class WpRobotWocommerceCron{
 	static function get_50_posts(){
 		global $wpdb;
 		
-			
-		/*
-		$sql = "select ID, post_title from $wpdb->posts where ID in (
-						select c.post_id from(
-							SELECT count(*) as num, post_id  FROM `$wpdb->postmeta` WHERE `meta_key` LIKE 'AMAZON_ASIN' or meta_key like 'woocommerce_id'  group by post_id 
-						) c where  c.num=1
-		)" ;	
-		*/
 		
+				
 		$sql = "select ID, post_title, post_date from $wpdb->posts where ID in (
 						select c.post_id from(
 							SELECT count(*) as num, post_id  FROM `$wpdb->postmeta` WHERE `meta_key` LIKE 'AMAZON_ASIN' or meta_key like 'woocommerce_id'  group by post_id 
 						) c where  c.num=1
 		) LIMIT 50" ;	
-				
+		
+		
 		
 		$posts = $wpdb->get_results($sql);		
 		return $posts;

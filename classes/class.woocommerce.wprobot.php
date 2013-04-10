@@ -13,8 +13,8 @@ class wprobot_woocommerce{
 	static function init(){
 		
 		//loop and single product fatching form amazon using wprobot
-		add_action('woocommerce_before_single_product', array(get_class(), 'wprobot_post'));
-		add_action('woocommerce_before_shop_loop_item', array(get_class(), 'wprobot_post'));		
+	//	add_action('woocommerce_before_single_product', array(get_class(), 'wprobot_post'));
+	//	add_action('woocommerce_before_shop_loop_item', array(get_class(), 'wprobot_post'));		
 
 		//single products tabs handling
 		add_filter('woocommerce_product_tabs', array(get_class(), 'products_features'), 20);		
@@ -150,24 +150,21 @@ class wprobot_woocommerce{
 	
 	
 	/*return products features*/
-	static function products_features($tabs){
-		if(wprobot_woocommerce::$wprobot_post){
-			if(strlen(wprobot_woocommerce::$wprobot_post['features']) > 2){
-				$tabs['features'] = array(
-					'title' => __("Features"),
-					'priority' => 5,
-					'callback' => array(get_class(), 'get_product_features')
-				);
-			}
+	static function products_features($tabs){	
 			
-			if(strlen(wprobot_woocommerce::$wprobot_post['description']) > 2){
-				$tabs['amazondescription'] = array(
-					'title' => __("Description"),
-					'priority' => 3,
-					'callback' => array(get_class(), 'get_product_description')
-				);
-			}
-		}
+		$tabs['features'] = array(
+			'title' => __("Features"),
+			'priority' => 5,
+			'callback' => array(get_class(), 'get_product_features')
+		);
+	
+		$tabs['amazondescription'] = array(
+			'title' => __("Description"),
+			'priority' => 3,
+			'callback' => array(get_class(), 'get_product_description')
+		);
+			
+		
 		
 		return $tabs;
 	}
