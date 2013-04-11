@@ -21,4 +21,10 @@ include WPROBOTWOOCOMMERCE_DIR . '/classes/class.cron.php';
 WpRobotWocommerceCron::init();
 
 
+
+//price updating cron
+include WPROBOTWOOCOMMERCE_DIR . '/classes/cron-price-adjusting.php';
+WoocommerceAmazonPrice::init();
+
+
 ?>
