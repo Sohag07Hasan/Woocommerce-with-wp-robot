@@ -12,7 +12,7 @@ class WoocommerceAmazonPrice{
 	const option_key = "woocommerce_amazon_update";
 	
 	static function init(){
-		add_action('init', array(get_class(), 'update_product_information'));
+		//add_action('init', array(get_class(), 'update_product_information'));
 		
 		add_filter('cron_schedules', array(get_class(), 'add_new_interval'));
 		
@@ -21,15 +21,7 @@ class WoocommerceAmazonPrice{
 		add_action(self::hook, array(get_class(), 'update_product_information'));
 		
 	}
-	
-	
-	//checking
-	static function schedulerChecking(){
-		$schedules = wp_get_schedules();
-		var_dump($schedules);
-		die();
-	}
-	
+		
 	
 	
 	//add a new scheduler
@@ -70,9 +62,13 @@ class WoocommerceAmazonPrice{
 		//getting the previous cron offset
 		$prev_info = get_option(self::option_key);	
 		$offset = (isset($prev_info['offset'])) ? (int) $prev_info['offset'] : 0;
+		$limit = 300;
+		
+		
+		
 		
 		//offset checking
-		$maximum_product_sql = "SELECT MAX(ID) FROM $wpdb->posts WHERE post_status LIKE 'publish' AND post_type LIKE 'product'";
+		$maximum_product_sql = "SELECT COUNT(ID) FROM $wpdb->posts WHERE post_status LIKE 'publish' AND post_type LIKE 'product'";
 		$max_product_id = $wpdb->get_var($maximum_product_sql);
 		
 		if($offset > (int) $max_product_id){
@@ -80,18 +76,16 @@ class WoocommerceAmazonPrice{
 		}
 		
 		
-		//getting products
-		$products = self::get_products(300, $offset);
 		
+		//getting products
+		$products = self::get_products($limit, $offset);
+		
+		//if product exists increment the offset by limit number
 		if($products){
 			$offset += $limit;
 			update_option(self::option_key, array('time'=>current_time('timestamp'), 'offset'=>$offset));
 		}
-		
-		
-		
-		
-		var_dump($products); die();
+	
 		
 		if($products){
 				
@@ -107,18 +101,33 @@ class WoocommerceAmazonPrice{
 				);
 				
 				$offer = $pas->item_lookup($pr->meta_value, $opt);
+				
+				//var_dump($offer->body); 
+				
 				if($offer->isOk()){
 					foreach($offer->body->Items->Item as $item){
-						$list_price = (string) $item->Offers->Offer->OfferListing->Price->FormattedPrice;
-						$price = (string) $item->OfferSummary->LowestNewPrice->FormattedPrice;
 						
-						$sanitized_price = self::sanitize_price($list_price, $price);
+						//checking amazon availability checking
+						$availability = (string) $item->Offers->Offer->OfferListing->AvailabilityAttributes->AvailabilityType;
+											
+						if($availability == 'now') {
 						
-						if($sanitized_price['p'] > 0){
-							update_post_meta($pr->ID, '_regular_price', $sanitized_price['l']);
-							update_post_meta($pr->ID, '_sale_price', $sanitized_price['p']);
-							update_post_meta($pr->ID, '_price', $sanitized_price['p']);
+							$list_price = (string) $item->Offers->Offer->OfferListing->Price->FormattedPrice;
+							$price = (string) $item->OfferSummary->LowestNewPrice->FormattedPrice;
+							
+							$sanitized_price = self::sanitize_price($list_price, $price);
+							
+							if($sanitized_price['p'] > 0){
+								update_post_meta($pr->ID, '_regular_price', $sanitized_price['l']);
+								update_post_meta($pr->ID, '_sale_price', $sanitized_price['p']);
+								update_post_meta($pr->ID, '_price', $sanitized_price['p']);
+							}
+						
 						}
+						else{
+							wp_delete_post($pr->ID);
+						}
+						
 					}
 				}
 								
@@ -150,7 +159,7 @@ class WoocommerceAmazonPrice{
 	
 	
 	//get products
-	static function get_products($limit = 200, $offset = 0){
+	static function get_products($limit, $offset){
 		
 		global $wpdb;
 				
