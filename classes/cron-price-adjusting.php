@@ -12,7 +12,7 @@ class WoocommerceAmazonPrice{
 	const option_key = "woocommerce_amazon_update";
 	
 	static function init(){
-		add_action('init', array(get_class(), 'update_product_information'));
+	//	add_action('init', array(get_class(), 'update_product_information'));
 		
 		add_filter('cron_schedules', array(get_class(), 'add_new_interval'));
 		
@@ -104,10 +104,7 @@ class WoocommerceAmazonPrice{
 				
 				
 				$amazon_reviews = self::get_product_reviews($pr->meta_value);
-				
-				var_dump($amazon_reviews);
-				die();
-				
+								
 												
 				$offer = $pas->item_lookup($pr->meta_value, $opt);
 				
@@ -132,6 +129,11 @@ class WoocommerceAmazonPrice{
 								update_post_meta($pr->ID, '_regular_price', $sanitized_price['l']);
 								update_post_meta($pr->ID, '_sale_price', $sanitized_price['p']);
 								update_post_meta($pr->ID, '_price', $sanitized_price['p']);
+							}
+							
+							if($amazon_reviews){
+								update_post_meta($pr->ID, 'avg_rating', $amazon_reviews['avg_rating']);
+								update_post_meta($pr->ID, 'review_count', $amazon_reviews['count']);
 							}
 						
 						}
