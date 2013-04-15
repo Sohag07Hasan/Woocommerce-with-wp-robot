@@ -12,14 +12,13 @@ class WoocommerceAmazonPrice{
 	const option_key = "woocommerce_amazon_update";
 	
 	static function init(){
-		//add_action('init', array(get_class(), 'update_product_information'));
+		add_action('init', array(get_class(), 'update_product_information'));
 		
 		add_filter('cron_schedules', array(get_class(), 'add_new_interval'));
 		
 		register_activation_hook(WPROBOTWOOCOMMERCE_FILE, array(get_class(), 'create_scheduler'));
 		register_deactivation_hook(WPROBOTWOOCOMMERCE_FILE, array(get_class(), 'clear_scheduler'));
-		add_action(self::hook, array(get_class(), 'update_product_information'));
-		
+		add_action(self::hook, array(get_class(), 'update_product_information'));		
 	}
 		
 	
@@ -80,6 +79,8 @@ class WoocommerceAmazonPrice{
 		//getting products
 		$products = self::get_products($limit, $offset);
 		
+		//var_dump($products); die();
+		
 		//if product exists increment the offset by limit number
 		if($products){
 			$offset += $limit;
@@ -94,23 +95,33 @@ class WoocommerceAmazonPrice{
 			$pas->set_locale(PAS_LOCALE_US);
 						
 			foreach($products as $pr){
+				
 				$opt = array(
 					'IdType' => 'ASIN',
-					'ResponseGroup' => 'OfferFull'
-				//	'ResponseGroup' => 'Large'
+					'ResponseGroup' => 'OfferFull',				
+					'IncludeReviewsSummary' => "False"
 				);
 				
+				
+				$amazon_reviews = self::get_product_reviews($pr->meta_value);
+				
+				var_dump($amazon_reviews);
+				die();
+				
+												
 				$offer = $pas->item_lookup($pr->meta_value, $opt);
 				
-				//var_dump($offer->body); 
+				 
 				
 				if($offer->isOk()){
 					foreach($offer->body->Items->Item as $item){
 						
 						//checking amazon availability checking
 						$availability = (string) $item->Offers->Offer->OfferListing->AvailabilityAttributes->AvailabilityType;
-											
-						if($availability == 'now') {
+						$min_hours = (string) $item->Offers->Offer->OfferListing->AvailabilityAttributes->MinimumHours;
+						$max_hours = (string) $item->Offers->Offer->OfferListing->AvailabilityAttributes->MaximumHours;
+						
+						if($availability == 'now' || !empty($min_hours) || !empty($max_hours)) {
 						
 							$list_price = (string) $item->Offers->Offer->OfferListing->Price->FormattedPrice;
 							$price = (string) $item->OfferSummary->LowestNewPrice->FormattedPrice;
@@ -169,6 +180,64 @@ class WoocommerceAmazonPrice{
 		
 		return $results;
 	}
+	
+	
+	//get product average reviews and and review numbers
+	static function get_product_reviews($asin){
+		$pas = new AmazonPAS();
+		$pas->set_locale(PAS_LOCALE_US);
+		$opt = array(
+					'IdType' => 'ASIN',
+					'ResponseGroup' => 'Reviews',
+					'IncludeReviewsSummary' => "True"
+				);
+		
+		$offer = $pas->item_lookup($asin, $opt);
+		if($offer->isOk()){
+			foreach($offer->body->Items->Item as $item){
+				if((string) $item->CustomerReviews->HasReviews == 'true'){
+					$revcontent = file_get_contents((string) $item->CustomerReviews->IFrameURL);
+					
+					//var_dump($revcontent);
+					
+					if($revcontent){
+						preg_match('/<div class="crIFrameNumCustReviews">.*?<\/div>/msi', $revcontent, $reviewdiv);
+					
+						if(isset($reviewdiv[0])){
+							
+							//average reviews
+							preg_match('/<img.*? \/>/msi', $reviewdiv[0], $img);
+						//	var_dump($img);
+							
+							preg_match('/title="(.*?)"/msi', $img[0], $title);
+						//	var_dump($title);
+							
+							preg_match('/([0-9].*?)[a-zA-Z ]/msi', $title[1], $avg_rating);
+						//	var_dump($avg_rating);
+							
+							$rating = preg_replace('/[^0-9.]/', '', $avg_rating[1]);
+						//	var_dump($rating);
+							
+							//reveiw count
+							preg_match('/\(<a.*?>(.*?)<\/a>\)/msi', $reviewdiv[0], $count);
+						//	var_dump($count);
+							
+							$review_count = preg_replace('/[^0-9.]/', '', $count[1]);
+						//	var_dump($review_count);
+							
+							return array('avg_rating'=>$rating, 'count'=>$review_count);
+						}
+					}
+									
+					
+				}
+				
+			}
+		}
+		
+		return false;
+	}
+	
 	
 	
 	//get amazon response
