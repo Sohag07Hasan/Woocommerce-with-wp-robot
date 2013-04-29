@@ -102,7 +102,8 @@ class WpRobotWocommerceCron{
 						update_post_meta($ID, '_price', $price);
 						update_post_meta($ID, 'description', $post_metas['description'][0]);
 						update_post_meta($ID, 'features', $post_metas['features'][0]);
-						
+						update_post_meta($ID, 'avg_rating', $post_metas['averagereview'][0]);
+						update_post_meta($ID, 'review_count', $post_metas['reviewcount'][0]);
 						
 						
 						self::handle_attachment($ID, $post_metas);
