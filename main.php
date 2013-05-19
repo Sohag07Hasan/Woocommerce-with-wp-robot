@@ -27,4 +27,10 @@ include WPROBOTWOOCOMMERCE_DIR . '/classes/cron-price-adjusting.php';
 WoocommerceAmazonPrice::init();
 
 
+
+//testing the amazon api
+include WPROBOTWOOCOMMERCE_DIR . '/classes/class.test.php';
+Test_Amazon_Response::init()
+
+
 ?>

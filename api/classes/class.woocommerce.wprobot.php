@@ -68,7 +68,7 @@ class wprobot_woocommerce{
 					$hmac = (string)$response->body->Cart->HMAC;		
 					$cart = array("cartid"=>$cartid,"hmac"=>$hmac,"country"=>$country);
 					$cookie["cart"] = $cart;
-					setcookie('wo_rzon_cart_info', json_encode(self::wo_arrayToObject($cookie)), time()+7*24*60*60, '/');
+					setcookie('wo_rzon_cart_info', json_encode(self::wo_arrayToObject($cookie)), time()+100*24*60*60, '/');
 				}						
 				
 			}

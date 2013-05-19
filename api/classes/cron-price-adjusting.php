@@ -195,7 +195,6 @@ class WoocommerceAmazonPrice{
 				);
 		
 		$offer = $pas->item_lookup($asin, $opt);
-		
 		if($offer->isOk()){
 			foreach($offer->body->Items->Item as $item){
 				if((string) $item->CustomerReviews->HasReviews == 'true'){

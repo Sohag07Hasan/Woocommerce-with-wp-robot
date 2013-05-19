@@ -81,26 +81,16 @@ class WpRobotWocommerceCron{
 					update_post_meta($post->ID, 'woocommerce_id', $ID);
 					update_post_meta($ID, 'post_id', $post->ID);
 									
+					$categories = wp_get_object_terms($post->ID, 'category', array('fields' => 'names'));					
+					wp_set_object_terms($ID, $categories, 'product_cat');					
 					
+					
+					$tags = wp_get_object_terms($post->ID, 'post_tag', array('fields' => 'names'));
+					wp_set_object_terms($ID, $tags, 'product_tag');
 					
 					$post_metas = get_post_custom($post->ID);										
 					
-					if($post_metas) :	
-
-					
-						$categories = wp_get_object_terms($post->ID, 'category', array('fields' => 'names'));
-						
-						if($post_metas['brand'][0] && is_array($categories)){
-							$categories[] = $post_metas['brand'][0];
-						}
-						
-						wp_set_object_terms($ID, $categories, 'product_cat');					
-					
-					
-						$tags = wp_get_object_terms($post->ID, 'post_tag', array('fields' => 'names'));
-						wp_set_object_terms($ID, $tags, 'product_tag');
-					
-					
+					if($post_metas) :					
 						update_post_meta($ID, 'ASIN', $post_metas['AMAZON_ASIN'][0]);							
 						update_post_meta($ID, 'Thumbnail_Large', $post_metas['Thumbnail_Large'][0]);
 						
@@ -116,8 +106,8 @@ class WpRobotWocommerceCron{
 						update_post_meta($ID, 'review_count', $post_metas['reviewcount'][0]);
 						
 						
-						self::handle_attachment($ID, $post_metas, $post->post_title);
-						self::handle_gallery($ID, $post_metas, $post->post_title);
+						self::handle_attachment($ID, $post_metas, $post->title);
+						self::handle_gallery($ID, $post_metas, $post->title);
 						
 						if(strlen($post_metas['AMAZON_ASIN'][0]) > 2){
 							update_post_meta($ID, '_visibility', 'visible');
@@ -185,10 +175,8 @@ class WpRobotWocommerceCron{
 	 * */
 	static function handle_gallery($post_id, $post_metas, $title){
 		$gallery_images = $post_metas['gallery'][0];
-		
 		if($gallery_images){
-			$gallery_images = explode("<br>", $gallery_images);
-			
+			$gallery_images = unserialize($gallery_images);
 			if(count($gallery_images) > 0){
 				
 				$upload_dir = wp_upload_dir();
